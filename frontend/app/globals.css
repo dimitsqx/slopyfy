@@ -24,3 +24,11 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Constrain CopilotChat inside the centered card so it doesn't fill the viewport */
+.copilot-chat-card {
+  isolation: isolate;
+}
+.copilot-chat-card [class*="flex"] {
+  min-height: 0;
+}

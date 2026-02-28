@@ -31,7 +31,7 @@ mcp_client = MCPClient(
 agent = Agent(
     model=model,
     tools=[mcp_client],
-    system_prompt="You are a helpful AI assistant. Use the MCP tools (e.g. list_products, product_details) when the user asks about products.",
+    system_prompt="You are a helpful AI assistant. Use the available MCP tools when relevant to the user's request.",
 )
 # Wrap with AG-UI integration
 agui_agent = StrandsAgent(
