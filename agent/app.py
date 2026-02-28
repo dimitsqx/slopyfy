@@ -1,12 +1,17 @@
 import os
 
+from mcp.client.streamable_http import streamable_http_client
 from strands import Agent
 from strands.models import BedrockModel
+from strands.tools.mcp import MCPClient
 from ag_ui_strands import StrandsAgent, create_strands_app
 
 # Suppress OpenTelemetry context warnings
 os.environ["OTEL_SDK_DISABLED"] = "true"
 os.environ["OTEL_PYTHON_DISABLED_INSTRUMENTATIONS"] = "all"
+
+# MCP server URL (Streamable HTTP). Start with: npm run dev:http
+MCP_URL = os.getenv("MCP_URL", "http://127.0.0.1:3333/mcp")
 
 # Bedrock auth: boto3 reads AWS_BEARER_TOKEN_BEDROCK from the environment when set (Bedrock API key).
 # Ensure .env is loaded before this runs and contains AWS_BEARER_TOKEN_BEDROCK and AWS_DEFAULT_REGION.
@@ -17,10 +22,16 @@ model = BedrockModel(
     temperature=0.3,
 )
 
+# Connect to the MCP server over Streamable HTTP (list_products, product_details, etc.)
+mcp_client = MCPClient(
+    transport_callable=lambda: streamable_http_client(MCP_URL),
+    startup_timeout=30,
+)
 
 agent = Agent(
     model=model,
-    system_prompt="You are a helpful AI assistant.",
+    tools=[mcp_client],
+    system_prompt="You are a helpful AI assistant. Use the MCP tools (e.g. list_products, product_details) when the user asks about products.",
 )
 # Wrap with AG-UI integration
 agui_agent = StrandsAgent(
