@@ -1,6 +1,9 @@
 import os
+from uuid import uuid4
 
+from fastapi import HTTPException
 from mcp.client.streamable_http import streamable_http_client
+from pydantic import BaseModel
 from strands import Agent
 from strands.models import BedrockModel
 from strands.tools.mcp import MCPClient
@@ -38,8 +41,53 @@ agui_agent = StrandsAgent(
     agent=agent,
     name="strands_agent",
 )
+
+
+class ReadResourceRequest(BaseModel):
+    uri: str
+
+
+class ToolCallRequest(BaseModel):
+    name: str
+    arguments: dict[str, object] | None = None
+
+
+def _to_jsonable(value):
+    if hasattr(value, "model_dump"):
+        return value.model_dump(mode="json")
+    if isinstance(value, dict):
+        return {key: _to_jsonable(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_to_jsonable(item) for item in value]
+    return value
+
+
 # Create the FastAPI app
 app = create_strands_app(agui_agent, "/")
+
+
+@app.post("/mcp-apps/resources/read")
+def read_mcp_app_resource(payload: ReadResourceRequest):
+    try:
+        result = mcp_client.read_resource_sync(payload.uri)
+        return _to_jsonable(result)
+    except Exception as exc:  # pragma: no cover - integration path
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/mcp-apps/tools/call")
+def call_mcp_app_tool(payload: ToolCallRequest):
+    try:
+        result = mcp_client.call_tool_sync(
+            tool_use_id=f"mcp-app-host-{uuid4()}",
+            name=payload.name,
+            arguments=payload.arguments,
+        )
+        return _to_jsonable(result)
+    except Exception as exc:  # pragma: no cover - integration path
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
 if __name__ == "__main__":
     import uvicorn
 
