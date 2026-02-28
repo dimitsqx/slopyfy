@@ -36,3 +36,4 @@ npm run dev:client -- --url http://127.0.0.1:3333/mcp
 ## MCP tools
 - `list_products` optional filters: `query`, `category`, `limit`
 - `product_details` argument: `productId`
+- `sample_product_card` optional argument: `productId`, returns an inline `text/html` UI resource for a lightweight product card

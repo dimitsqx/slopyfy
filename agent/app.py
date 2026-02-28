@@ -22,7 +22,7 @@ model = BedrockModel(
     temperature=0.3,
 )
 
-# Connect to the MCP server over Streamable HTTP (list_products, product_details, etc.)
+# Connect to the MCP server over Streamable HTTP (list_products, product_details, sample_product_card, etc.)
 mcp_client = MCPClient(
     transport_callable=lambda: streamable_http_client(MCP_URL),
     startup_timeout=30,
@@ -31,7 +31,7 @@ mcp_client = MCPClient(
 agent = Agent(
     model=model,
     tools=[mcp_client],
-    system_prompt="You are a helpful AI assistant. Use the MCP tools (e.g. list_products, product_details) when the user asks about products.",
+    system_prompt="You are a helpful AI assistant. Use the MCP tools (e.g. list_products, product_details, sample_product_card) when the user asks about products or wants a product card UI.",
 )
 # Wrap with AG-UI integration
 agui_agent = StrandsAgent(

@@ -1,10 +1,5 @@
-import { CopilotSidebar } from "@copilotkit/react-ui"; 
+import ChatShell from './ChatShell';
 
 export default function Page() {
-  return (
-    <main>
-      <h1>Your App</h1>
-      <CopilotSidebar />
-    </main>
-  );
+  return <ChatShell />;
 }
