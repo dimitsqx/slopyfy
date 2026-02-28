@@ -78,13 +78,6 @@ function buildProductCardHtml(product: Product) {
         >
           Select product
         </button>
-        <button
-          type="button"
-          onclick="window.parent.postMessage({ type: 'tool', payload: { toolName: 'add_to_cart', params: { productId: '${escapeHtml(product.id)}', name: '${escapeHtml(product.name)}', priceUsd: ${product.priceUsd} } } }, '*')"
-          style="margin-top:10px;width:100%;border:1px solid #d6d3d1;border-radius:10px;padding:12px 14px;background:#fff;color:#111827;font-size:14px;font-weight:600;cursor:pointer;"
-        >
-          Add to cart
-        </button>
       </div>
     </article>
   </body>
