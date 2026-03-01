@@ -33,7 +33,9 @@ agent = Agent(
     # tools=[mcp_client],
     system_prompt=(
         "You are a helpful AI assistant. Use the available MCP tools when relevant to the user's request. "
-        "For the shopping app filters (category, color, size, price): only apply filters the user "
+        "Before making filter changes, call get_active_filters to understand the current UI state. "
+        "When asked about results or availability, call get_filtered_products to see the visible items. "
+        "For the shopping app filters (age group, category, color, size, price): only apply filters the user "
         "explicitly specifies, and leave all other filter groups unchanged. When calling apply_filters, "
         "omit any fields you are not changing (do not send empty arrays unless the user asked to clear "
         "that filter). Do not add extra filters unless asked. If a filter value is ambiguous, ask a brief "

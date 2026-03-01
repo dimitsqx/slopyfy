@@ -1,6 +1,9 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerAppResource, RESOURCE_MIME_TYPE } from '@modelcontextprotocol/ext-apps/server';
 import { z } from 'zod';
 import { PRODUCTS, type Product } from './data.js';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 
 const productOutput = z.object({
   id: z.string(),
@@ -13,60 +16,60 @@ const productOutput = z.object({
   inventory: z.number(),
 });
 
-const PRODUCT_CARDS_URI = 'ui://slopyfy/product-cards';
+const PRODUCT_CARDS_URI = 'ui://slopyfy/product-cards.html';
+const PRODUCT_CARDS_HTML_PATH = path.join(process.cwd(), 'dist-app', 'index.html');
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+async function loadProductCardsHtml(): Promise<string> {
+  try {
+    return await readFile(PRODUCT_CARDS_HTML_PATH, 'utf-8');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Slopyfy Product Cards</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 0; padding: 1.5rem; }
+      .notice { background: #fff4f4; border: 1px solid #fecaca; border-radius: 12px; padding: 1rem; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    </style>
+  </head>
+  <body>
+    <div class="notice">
+      <strong>Product cards app bundle missing.</strong>
+      <p>Run <code>npm run build:app</code> in <code>mcp/</code>.</p>
+      <p>Error: ${message}</p>
+    </div>
+  </body>
+</html>`;
+  }
 }
 
-function productCardHtml(product: Product): string {
-  return `
-    <article class="product-card" data-product-id="${escapeHtml(product.id)}" style="
-      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-      overflow: hidden;
-      font-family: system-ui, -apple-system, sans-serif;
-      max-width: 300px;
-      transition: box-shadow 0.2s ease;
-    ">
-      <div style="padding: 1rem 1.25rem;">
-        <span style="display: inline-block; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; margin-bottom: 0.35rem;">${escapeHtml(product.category)}</span>
-        <h3 style="margin: 0 0 0.5rem; font-size: 1.1rem; font-weight: 700; color: #0f172a; line-height: 1.3;">${escapeHtml(product.name)}</h3>
-        <p style="margin: 0 0 0.6rem; font-size: 0.85rem; color: #475569; line-height: 1.45;">${escapeHtml(product.description)}</p>
-        <div style="font-size: 1.15rem; font-weight: 700; color: #0f172a; margin-bottom: 0.5rem;">$${product.priceUsd}</div>
-        <div style="font-size: 0.75rem; color: #64748b;">
-          <span>Sizes: ${escapeHtml(product.sizes.join(', '))}</span>
-          <span style="margin-left: 0.6rem;">Colors: ${escapeHtml(product.colors.join(', '))}</span>
-        </div>
-        <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">In stock: ${product.inventory}</div>
-      </div>
-    </article>`;
-}
+function filterProducts({
+  query,
+  category,
+  limit,
+}: {
+  query?: string;
+  category?: Product['category'];
+  limit?: number;
+}): Product[] {
+  const normalizedQuery = query?.toLowerCase();
+  let results = PRODUCTS.filter((product) => {
+    const matchesQuery = normalizedQuery
+      ? `${product.name} ${product.description}`.toLowerCase().includes(normalizedQuery)
+      : true;
+    const matchesCategory = category ? product.category === category : true;
+    return matchesQuery && matchesCategory;
+  });
 
-function renderAllProductCardsHtml(products: Product[]): string {
-  const cards = products.map((p) => productCardHtml(p)).join('\n');
-  return `
-    <div style="
-      background: #f1f5f9;
-      padding: 1.5rem;
-      border-radius: 16px;
-      font-family: system-ui, -apple-system, sans-serif;
-    ">
-      <h2 style="margin: 0 0 1rem; font-size: 1.25rem; font-weight: 700; color: #0f172a;">Product catalog</h2>
-      <div style="
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        gap: 1.25rem;
-      ">
-        ${cards}
-      </div>
-    </div>`;
+  if (limit) {
+    results = results.slice(0, limit);
+  }
+
+  return results;
 }
 
 export function createShopServer() {
@@ -75,13 +78,33 @@ export function createShopServer() {
     version: '0.1.0',
   });
 
-  const listProductsInput = z
-    .object({
-      query: z.string().min(1).optional(),
-      category: z.enum(['tops', 'bottoms', 'outerwear', 'accessories', 'footwear']).optional(),
-      limit: z.number().int().min(1).max(50).optional(),
-    })
-    .partial();
+  registerAppResource(
+    server,
+    'Product cards UI',
+    PRODUCT_CARDS_URI,
+    {
+      description: 'Interactive product catalog app.',
+      mimeType: RESOURCE_MIME_TYPE,
+    },
+    async () => {
+      const html = await loadProductCardsHtml();
+      return {
+        contents: [
+          {
+            uri: PRODUCT_CARDS_URI,
+            mimeType: RESOURCE_MIME_TYPE,
+            text: html,
+          },
+        ],
+      };
+    },
+  );
+
+  const listProductsInput = z.object({
+    query: z.string().min(1).optional(),
+    category: z.enum(['tops', 'bottoms', 'outerwear', 'accessories', 'footwear']).optional(),
+    limit: z.number().int().min(1).max(50).optional(),
+  });
 
   server.registerTool(
     'list_products',
@@ -94,19 +117,7 @@ export function createShopServer() {
       }),
     },
     async ({ query, category, limit }) => {
-      const normalizedQuery = query?.toLowerCase();
-
-      let results = PRODUCTS.filter((product) => {
-        const matchesQuery = normalizedQuery
-          ? `${product.name} ${product.description}`.toLowerCase().includes(normalizedQuery)
-          : true;
-        const matchesCategory = category ? product.category === category : true;
-        return matchesQuery && matchesCategory;
-      });
-
-      if (limit) {
-        results = results.slice(0, limit);
-      }
+      const results = filterProducts({ query, category, limit });
 
       const payload = { products: results };
 
@@ -134,28 +145,16 @@ export function createShopServer() {
       }),
     },
     async ({ query, category, limit }) => {
-      const normalizedQuery = query?.toLowerCase();
-      let results = PRODUCTS.filter((product) => {
-        const matchesQuery = normalizedQuery
-          ? `${product.name} ${product.description}`.toLowerCase().includes(normalizedQuery)
-          : true;
-        const matchesCategory = category ? product.category === category : true;
-        return matchesQuery && matchesCategory;
-      });
-      if (limit) results = results.slice(0, limit);
-      const html = renderAllProductCardsHtml(results);
+      const results = filterProducts({ query, category, limit });
       return {
         content: [
           { type: 'text', text: `Showing ${results.length} product(s).` },
-          {
-            type: 'resource',
-            resource: {
-              uri: PRODUCT_CARDS_URI,
-              mimeType: 'text/html',
-              text: html,
-            },
-          },
         ],
+        _meta: {
+          ui: {
+            resourceUri: PRODUCT_CARDS_URI,
+          },
+        },
         structuredContent: { products: results },
       };
     },
