@@ -1,4 +1,5 @@
-import { CopilotKit } from "@copilotkit/react-core"; 
+import { CopilotKit } from "@copilotkit/react-core";
+// import "./globals.css";
 import "@copilotkit/react-ui/styles.css";
 
 // ...
