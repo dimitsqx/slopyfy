@@ -20,6 +20,18 @@ body {
   padding: 32px 40px 80px;
 }
 
+.age-group {
+  margin-bottom: 20px;
+}
+
+.age-group h2 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
 .chat-shell {
   position: sticky;
   top: 0;
@@ -75,6 +87,31 @@ body {
 .catalog-header p {
   margin: 0;
   color: #64748b;
+}
+
+.home-hero {
+  margin: 40px 40px 0;
+  padding: 28px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+}
+
+.home-hero h1 {
+  margin: 0 0 10px;
+  font-size: 28px;
+}
+
+.home-hero p {
+  margin: 0 0 20px;
+  color: #64748b;
+}
+
+.home-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .secondary-button {
@@ -288,5 +325,9 @@ body {
   .chat-panel {
     height: auto;
     min-height: 420px;
+  }
+
+  .home-hero {
+    margin: 32px 20px 0;
   }
 }

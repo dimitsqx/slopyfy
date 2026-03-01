@@ -1,5 +1,5 @@
-import ShoppingClient from "./client";
+import { HomePage } from "./client";
 
 export default function Home() {
-  return <ShoppingClient />;
+  return <HomePage />;
 }

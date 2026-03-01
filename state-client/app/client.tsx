@@ -6,13 +6,17 @@ import { CopilotChat } from "@copilotkit/react-ui";
 import "@copilotkit/react-ui/styles.css";
 import "./style.css";
 import { PRODUCTS, Product } from "./data";
+import { useRouter } from "next/navigation";
 
 type PriceRange = {
   min: number;
   max: number;
 };
 
+type AgeGroup = "kids" | "adults";
+
 type FilterState = {
+  ageGroup: AgeGroup | "all";
   category: Product["category"] | "all";
   colors: string[];
   sizes: string[];
@@ -26,6 +30,7 @@ type ShoppingAgentState = {
 const maxPrice = Math.max(...PRODUCTS.map((product) => product.priceUsd));
 
 const INITIAL_FILTERS: FilterState = {
+  ageGroup: "all",
   category: "all",
   colors: [],
   sizes: [],
@@ -42,6 +47,7 @@ const categoryOptions: FilterState["category"][] = [
   "all",
   ...uniqueValues(PRODUCTS.map((product) => product.category) as Product["category"][]),
 ];
+const ageGroupOptions: AgeGroup[] = ["kids", "adults"];
 const colorOptions = uniqueValues(PRODUCTS.flatMap((product) => product.colors));
 const sizeOptions = uniqueValues(PRODUCTS.flatMap((product) => product.sizes));
 
@@ -59,6 +65,7 @@ const sanitizePriceRange = (range: Partial<PriceRange>): PriceRange => {
 };
 
 const normalizeFilters = (next: Partial<FilterState>): FilterState => ({
+  ageGroup: (next.ageGroup ?? INITIAL_FILTERS.ageGroup) as FilterState["ageGroup"],
   category: (next.category ?? INITIAL_FILTERS.category) as FilterState["category"],
   colors: Array.isArray(next.colors) ? next.colors : [],
   sizes: Array.isArray(next.sizes) ? next.sizes : [],
@@ -66,9 +73,41 @@ const normalizeFilters = (next: Partial<FilterState>): FilterState => ({
 });
 
 export default function ShoppingClient() {
+  return <ShoppingPage initialAgeGroup="all" />;
+}
+
+export function ShoppingPage({ initialAgeGroup }: { initialAgeGroup: FilterState["ageGroup"] }) {
+  return (
+    <ShoppingShell>
+      <ShoppingApp initialAgeGroup={initialAgeGroup} />
+    </ShoppingShell>
+  );
+}
+
+export function HomePage() {
+  const router = useRouter();
+  return (
+    <ShoppingShell>
+      <div className="home-hero">
+        <h1>Hello 👋</h1>
+        <p>Ask the assistant to show kids or adults items.</p>
+        <div className="home-actions">
+          <button type="button" className="secondary-button" onClick={() => router.push("/kids")}>
+            Browse kids
+          </button>
+          <button type="button" className="secondary-button" onClick={() => router.push("/adults")}>
+            Browse adults
+          </button>
+        </div>
+      </div>
+    </ShoppingShell>
+  );
+}
+
+function ShoppingShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="app-shell">
-      <ShoppingApp />
+      <div>{children}</div>
       <div className="chat-shell">
         <ChatPanel />
       </div>
@@ -76,13 +115,23 @@ export default function ShoppingClient() {
   );
 }
 
-function ShoppingApp() {
+function ShoppingApp({ initialAgeGroup }: { initialAgeGroup: FilterState["ageGroup"] }) {
+  const router = useRouter();
   const { state: agentState, setState: setAgentState } = useCoAgent<ShoppingAgentState>({
     name: "strands_agent",
-    initialState: INITIAL_STATE,
+    initialState: {
+      ...INITIAL_STATE,
+      filters: {
+        ...INITIAL_FILTERS,
+        ageGroup: initialAgeGroup,
+      },
+    },
   });
 
-  const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
+  const [filters, setFilters] = useState<FilterState>({
+    ...INITIAL_FILTERS,
+    ageGroup: initialAgeGroup,
+  });
 
   const applyFilters = (partial: Partial<FilterState>) => {
     const merged = normalizeFilters({
@@ -168,6 +217,7 @@ function ShoppingApp() {
 
   const filteredProducts = useMemo(() => {
     return PRODUCTS.filter((product) => {
+      if (filters.ageGroup !== "all" && product.ageGroup !== filters.ageGroup) return false;
       if (filters.category !== "all" && product.category !== filters.category) return false;
       if (filters.colors.length > 0 && !filters.colors.some((color) => product.colors.includes(color)))
         return false;
@@ -195,6 +245,25 @@ function ShoppingApp() {
 
   return (
     <div className="catalog">
+      <section className="age-group">
+        <h2>Shop by age</h2>
+        <div className="chip-group">
+          {ageGroupOptions.map((group) => (
+            <button
+              key={group}
+              type="button"
+              className={filters.ageGroup === group ? "chip chip-active" : "chip"}
+              onClick={() => {
+                const nextRoute = group === "kids" ? "/kids" : "/adults";
+                applyFilters({ ageGroup: group });
+                router.push(nextRoute);
+              }}
+            >
+              {group}
+            </button>
+          ))}
+        </div>
+      </section>
       <header className="catalog-header">
         <div>
           <h1>Slopyfy Shop</h1>
@@ -339,6 +408,32 @@ function ShoppingApp() {
 }
 
 function ChatPanel() {
+  const router = useRouter();
+
+  useCopilotAction({
+    name: "go_to_age_group",
+    description: "Navigate to the kids or adults shopping page.",
+    parameters: [
+      {
+        name: "ageGroup",
+        type: "string",
+        description: "The target age group route: kids or adults.",
+      },
+    ],
+    handler: async ({ ageGroup }) => {
+      const target = ageGroup === "kids" ? "/kids" : ageGroup === "adults" ? "/adults" : null;
+      if (!target) return;
+      router.push(target);
+      if (typeof window !== "undefined") {
+        window.setTimeout(() => {
+          if (window.location.pathname !== target) {
+            window.location.assign(target);
+          }
+        }, 0);
+      }
+    },
+  });
+
   return (
     <div className="chat-panel">
       <div className="chat-panel-header">
@@ -364,7 +459,7 @@ function ProductCard({ product }: { product: Product }) {
         <span className="price">${product.priceUsd}</span>
       </div>
       <h3>{product.name}</h3>
-      <p className="description">{product.description}</p>
+      <p className="description">{product.productDescription}</p>
       <div className="detail-row">
         <span>Colors:</span>
         <span>{product.colors.join(", ")}</span>
