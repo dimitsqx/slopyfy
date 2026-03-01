@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { useCoAgent, useCopilotAction } from "@copilotkit/react-core";
-import { CopilotChat } from "@copilotkit/react-ui";
+import { CopilotChat, type InputProps } from "@copilotkit/react-ui";
 import "@copilotkit/react-ui/styles.css";
 import "./style.css";
 import { PRODUCTS, Product } from "./data";
@@ -25,6 +25,10 @@ type FilterState = {
 type ShoppingAgentState = {
   view: ViewState;
   filters: FilterState;
+};
+
+type TranscriptionResponse = {
+  text: string;
 };
 
 const uniqueValues = <T extends string>(values: T[]) => Array.from(new Set(values)).sort();
@@ -551,10 +555,235 @@ function ChatPanel() {
       </div>
       <CopilotChat
         className="chat-panel-body"
+        Input={ChatVoiceInput}
         labels={{ initial: "Tell me how to filter the catalog." }}
       />
     </div>
   );
+}
+
+function ChatVoiceInput({ inProgress, onSend, onStop }: InputProps) {
+  const [text, setText] = useState("");
+  const [isComposing, setIsComposing] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const recorderChunksRef = useRef<Blob[]>([]);
+
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current?.state === "recording") {
+        mediaRecorderRef.current.onstop = null;
+        mediaRecorderRef.current.onerror = null;
+        mediaRecorderRef.current.stop();
+      }
+      releaseMediaStream(mediaStreamRef);
+    };
+  }, []);
+
+  const isBusy = inProgress || isTranscribing;
+  const canStopGeneration = inProgress && typeof onStop === "function";
+
+  const sendText = async () => {
+    const nextText = text.trim();
+    if (!nextText || isBusy || isRecording) {
+      return;
+    }
+
+    setVoiceError(null);
+    await onSend(nextText);
+    setText("");
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current?.state === "recording") {
+      mediaRecorderRef.current.stop();
+    }
+  };
+
+  const toggleRecording = async () => {
+    if (isTranscribing || inProgress) {
+      return;
+    }
+
+    if (isRecording) {
+      stopRecording();
+      return;
+    }
+
+    if (typeof window === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      setVoiceError("Microphone capture is not supported in this browser.");
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = getSupportedAudioMimeType();
+      const recorder = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
+
+      mediaStreamRef.current = stream;
+      mediaRecorderRef.current = recorder;
+      recorderChunksRef.current = [];
+      setVoiceError(null);
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          recorderChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onerror = () => {
+        recorder.onstop = null;
+        setVoiceError("Voice recording failed.");
+        setIsRecording(false);
+        mediaRecorderRef.current = null;
+        if (recorder.state === "recording") {
+          recorder.stop();
+        }
+        releaseMediaStream(mediaStreamRef);
+      };
+
+      recorder.onstop = () => {
+        const blobType = recorder.mimeType || mimeType || "audio/webm";
+        const blob = new Blob(recorderChunksRef.current, { type: blobType });
+        recorderChunksRef.current = [];
+        mediaRecorderRef.current = null;
+        setIsRecording(false);
+        releaseMediaStream(mediaStreamRef);
+
+        void transcribeAndSend(blob, onSend, setIsTranscribing, setVoiceError);
+      };
+
+      recorder.start();
+      setIsRecording(true);
+    } catch (error) {
+      setVoiceError((error as Error).message);
+      setIsRecording(false);
+      releaseMediaStream(mediaStreamRef);
+    }
+  };
+
+  return (
+    <div className="voice-input-shell">
+      {voiceError ? <p className="voice-input-error">{voiceError}</p> : null}
+      <div className="voice-input-row">
+        <textarea
+          className="voice-input-textarea"
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+          onCompositionStart={() => setIsComposing(true)}
+          onCompositionEnd={() => setIsComposing(false)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.shiftKey && !isComposing) {
+              event.preventDefault();
+              void sendText();
+            }
+          }}
+          placeholder="Type or record a request..."
+          disabled={isBusy || isRecording}
+          rows={3}
+        />
+        <div className="voice-input-actions">
+          <button
+            type="button"
+            className={`voice-input-button ${isRecording ? "voice-input-button-recording" : ""}`}
+            onClick={() => void toggleRecording()}
+            disabled={isTranscribing || inProgress}
+          >
+            {isRecording ? "Stop" : "Mic"}
+          </button>
+          <button
+            type="button"
+            className="voice-input-button"
+            onClick={canStopGeneration ? onStop : () => void sendText()}
+            disabled={isRecording || isTranscribing || (!canStopGeneration && text.trim().length === 0)}
+          >
+            {canStopGeneration ? "Stop" : "Send"}
+          </button>
+        </div>
+      </div>
+      <p className="voice-input-status">
+        {isRecording
+          ? "Recording voice input..."
+          : isTranscribing
+            ? "Transcribing voice input..."
+            : "Record once to send a transcribed message."}
+      </p>
+    </div>
+  );
+}
+
+function getSupportedAudioMimeType() {
+  if (typeof MediaRecorder === "undefined") {
+    return "";
+  }
+
+  if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
+    return "audio/webm;codecs=opus";
+  }
+
+  if (MediaRecorder.isTypeSupported("audio/webm")) {
+    return "audio/webm";
+  }
+
+  return "";
+}
+
+function releaseMediaStream(mediaStreamRef: { current: MediaStream | null }) {
+  if (!mediaStreamRef.current) {
+    return;
+  }
+
+  mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+  mediaStreamRef.current = null;
+}
+
+async function transcribeAndSend(
+  blob: Blob,
+  onSend: InputProps["onSend"],
+  setIsTranscribing: React.Dispatch<React.SetStateAction<boolean>>,
+  setVoiceError: React.Dispatch<React.SetStateAction<string | null>>,
+) {
+  if (blob.size === 0) {
+    return;
+  }
+
+  const form = new FormData();
+  form.append("file", new File([blob], "recording.webm", { type: blob.type || "audio/webm" }));
+
+  setIsTranscribing(true);
+  setVoiceError(null);
+
+  try {
+    const response = await fetch("/api/transcribe", {
+      method: "POST",
+      body: form,
+    });
+
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as
+        | { error?: string }
+        | null;
+      throw new Error(payload?.error ?? `Request failed with ${response.status}`);
+    }
+
+    const payload = (await response.json()) as TranscriptionResponse;
+    const nextText = payload.text.trim();
+    if (!nextText) {
+      setVoiceError("No speech was detected.");
+      return;
+    }
+
+    await onSend(nextText);
+  } catch (error) {
+    setVoiceError((error as Error).message);
+  } finally {
+    setIsTranscribing(false);
+  }
 }
 
 function ProductCard({ product }: { product: Product }) {
