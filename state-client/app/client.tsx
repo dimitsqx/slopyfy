@@ -6,6 +6,9 @@ import { CopilotChat, type InputProps } from "@copilotkit/react-ui";
 import "@copilotkit/react-ui/styles.css";
 import "./style.css";
 import { PRODUCTS, Product } from "./data";
+import HomeView from "./components/HomeView";
+
+type ViewState = "home" | Product["ageGroup"];
 
 type PriceRange = {
   min: number;
@@ -20,38 +23,19 @@ type FilterState = {
 };
 
 type ShoppingAgentState = {
+  view: ViewState;
   filters: FilterState;
 };
-
-const maxPrice = Math.max(...PRODUCTS.map((product) => product.priceUsd));
-
-const INITIAL_FILTERS: FilterState = {
-  category: "all",
-  colors: [],
-  sizes: [],
-  priceRange: { min: 0, max: maxPrice },
-};
-
-const INITIAL_STATE: ShoppingAgentState = {
-  filters: INITIAL_FILTERS,
-};
-
-const uniqueValues = <T extends string>(values: T[]) => Array.from(new Set(values)).sort();
-
-const categoryOptions: FilterState["category"][] = [
-  "all",
-  ...uniqueValues(PRODUCTS.map((product) => product.category) as Product["category"][]),
-];
-const colorOptions = uniqueValues(PRODUCTS.flatMap((product) => product.colors));
-const sizeOptions = uniqueValues(PRODUCTS.flatMap((product) => product.sizes));
 
 type TranscriptionResponse = {
   text: string;
 };
 
+const uniqueValues = <T extends string>(values: T[]) => Array.from(new Set(values)).sort();
+
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
-const sanitizePriceRange = (range: Partial<PriceRange>): PriceRange => {
+const sanitizePriceRange = (range: Partial<PriceRange>, maxPrice: number): PriceRange => {
   let min = Number.isFinite(range.min) ? Number(range.min) : 0;
   let max = Number.isFinite(range.max) ? Number(range.max) : maxPrice;
   min = clamp(min, 0, maxPrice);
@@ -62,12 +46,58 @@ const sanitizePriceRange = (range: Partial<PriceRange>): PriceRange => {
   return { min, max };
 };
 
-const normalizeFilters = (next: Partial<FilterState>): FilterState => ({
-  category: (next.category ?? INITIAL_FILTERS.category) as FilterState["category"],
+const buildFilterOptions = (products: Product[]) => {
+  const maxPrice = products.length
+    ? Math.max(...products.map((product) => product.priceUsd))
+    : 0;
+  const categoryOptions: FilterState["category"][] = [
+    "all",
+    ...uniqueValues(products.map((product) => product.category) as Product["category"][]),
+  ];
+  const colorOptions = uniqueValues(products.flatMap((product) => product.colors));
+  const sizeOptions = uniqueValues(products.flatMap((product) => product.sizes));
+  return { maxPrice, categoryOptions, colorOptions, sizeOptions };
+};
+
+const createInitialFilters = (maxPrice: number): FilterState => ({
+  category: "all",
+  colors: [],
+  sizes: [],
+  priceRange: { min: 0, max: maxPrice },
+});
+
+const normalizeFilters = (next: Partial<FilterState>, maxPrice: number): FilterState => ({
+  category: (next.category ?? "all") as FilterState["category"],
   colors: Array.isArray(next.colors) ? next.colors : [],
   sizes: Array.isArray(next.sizes) ? next.sizes : [],
-  priceRange: sanitizePriceRange(next.priceRange ?? INITIAL_FILTERS.priceRange),
+  priceRange: sanitizePriceRange(next.priceRange ?? { min: 0, max: maxPrice }, maxPrice),
 });
+
+const getProductsForView = (view: ViewState) => {
+  if (view === "home") return PRODUCTS;
+  return PRODUCTS.filter((product) => product.ageGroup === view);
+};
+
+const getFilterOptionsForView = (view: ViewState) => buildFilterOptions(getProductsForView(view));
+
+const filterProducts = (products: Product[], filters: FilterState) =>
+  products.filter((product) => {
+    if (filters.category !== "all" && product.category !== filters.category) return false;
+    if (filters.colors.length > 0 && !filters.colors.some((color) => product.colors.includes(color)))
+      return false;
+    if (filters.sizes.length > 0 && !filters.sizes.some((size) => product.sizes.includes(size)))
+      return false;
+    if (product.priceUsd < filters.priceRange.min || product.priceUsd > filters.priceRange.max)
+      return false;
+    return true;
+  });
+
+const INITIAL_STATE: ShoppingAgentState = {
+  view: "home",
+  filters: createInitialFilters(
+    PRODUCTS.length ? Math.max(...PRODUCTS.map((product) => product.priceUsd)) : 0
+  ),
+};
 
 export default function ShoppingClient() {
   return (
@@ -85,18 +115,133 @@ function ShoppingApp() {
     name: "strands_agent",
     initialState: INITIAL_STATE,
   });
-  const filters = normalizeFilters(agentState?.filters ?? INITIAL_FILTERS);
+
+  const [view, setView] = useState<ViewState>(agentState?.view ?? "home");
+  const viewRef = useRef<ViewState>(agentState?.view ?? "home");
+
+  const applyView = (nextView: ViewState) => {
+    const nextProducts = getProductsForView(nextView);
+    const { maxPrice: nextMaxPrice } = buildFilterOptions(nextProducts);
+    const nextFilters = createInitialFilters(nextMaxPrice);
+    viewRef.current = nextView;
+    setView(nextView);
+    setAgentState({ view: nextView, filters: nextFilters });
+  };
+
+  useEffect(() => {
+    viewRef.current = view;
+  }, [view]);
+
+  useEffect(() => {
+    if (!agentState) return;
+    if (agentState.view && agentState.view !== view) {
+      viewRef.current = agentState.view;
+      setView(agentState.view);
+      return;
+    }
+  }, [agentState, view]);
+
+  useCopilotAction({
+    name: "go_to_age_group",
+    description: "Navigate to the kids or adults catalog view.",
+    parameters: [
+      {
+        name: "ageGroup",
+        type: "string",
+        description: 'Age group to browse ("kids" or "adults").',
+      },
+    ],
+    handler: async ({ ageGroup }) => {
+      if (ageGroup === "kids" || ageGroup === "adults") {
+        applyView(ageGroup);
+        const { maxPrice, categoryOptions, colorOptions, sizeOptions } =
+          getFilterOptionsForView(ageGroup);
+        return {
+          view: ageGroup,
+          categoryOptions,
+          colorOptions,
+          sizeOptions,
+          priceRange: { min: 0, max: maxPrice },
+        };
+      }
+      return null;
+    },
+  });
+
+  useCopilotAction({
+    name: "go_home",
+    description: "Navigate back to the home view.",
+    parameters: [],
+    handler: async () => {
+      applyView("home");
+    },
+  });
+
+  return (
+    <div className="catalog">
+      <header className="catalog-header">
+        <div>
+          <h1>{view === "home" ? "Slopyfy Shop" : `${view === "kids" ? "Kids" : "Adults"} Shop`}</h1>
+          <p>
+            {view === "home"
+              ? "Start at home and pick a collection."
+              : "Browse essentials and let the agent filter for you."}
+          </p>
+        </div>
+      </header>
+
+      {view === "home" ? (
+        <HomeView onSelectAgeGroup={(ageGroup) => applyView(ageGroup)} />
+      ) : (
+        <ProductView
+          view={view}
+          agentState={agentState}
+          setAgentState={setAgentState}
+          onGoHome={() => applyView("home")}
+        />
+      )}
+    </div>
+  );
+}
+
+function ProductView({
+  view,
+  agentState,
+  setAgentState,
+  onGoHome,
+}: {
+  view: Exclude<ViewState, "home">;
+  agentState: ShoppingAgentState | undefined;
+  setAgentState: (state: ShoppingAgentState) => void;
+  onGoHome: () => void;
+}) {
+  const baseProducts = getProductsForView(view);
+  const { maxPrice, categoryOptions, colorOptions, sizeOptions } = buildFilterOptions(baseProducts);
+  const [filters, setFilters] = useState<FilterState>(createInitialFilters(maxPrice));
+
+  useEffect(() => {
+    const nextFilters = agentState?.filters
+      ? normalizeFilters(agentState.filters, maxPrice)
+      : createInitialFilters(maxPrice);
+    setFilters((current) =>
+      JSON.stringify(current) === JSON.stringify(nextFilters) ? current : nextFilters
+    );
+  }, [agentState?.filters, maxPrice]);
 
   const applyFilters = (partial: Partial<FilterState>) => {
-    const merged = normalizeFilters({
-      ...filters,
-      ...partial,
-      priceRange: sanitizePriceRange({
-        ...filters.priceRange,
-        ...(partial.priceRange ?? {}),
-      }),
-    });
-    setAgentState({ filters: merged });
+    const merged = normalizeFilters(
+      {
+        ...filters,
+        ...partial,
+        priceRange: {
+          ...filters.priceRange,
+          ...(partial.priceRange ?? {}),
+        },
+      },
+      maxPrice
+    );
+    setFilters(merged);
+    setAgentState({ view, filters: merged });
   };
 
   useCopilotAction({
@@ -123,22 +268,44 @@ function ShoppingApp() {
       { name: "maxPrice", type: "number", description: "Maximum price in USD." },
     ],
     handler: async ({ category, colors, sizes, minPrice, maxPrice }) => {
-      const nextCategory =
-        category && categoryOptions.includes(category as FilterState["category"])
-          ? (category as FilterState["category"])
-          : filters.category;
+      const categoryLookup = new Map(
+        categoryOptions.map((option) => [option.toLowerCase(), option])
+      );
+      const normalizedCategory =
+        typeof category === "string" ? category.toLowerCase() : undefined;
+      const resolvedCategory =
+        normalizedCategory && categoryLookup.has(normalizedCategory)
+          ? categoryLookup.get(normalizedCategory)
+          : undefined;
+      const nextCategory = resolvedCategory ?? filters.category;
+      const colorLookup = new Map(colorOptions.map((option) => [option.toLowerCase(), option]));
+      const normalizedColors = Array.isArray(colors)
+        ? colors
+            .map((color) => (typeof color === "string" ? color.toLowerCase() : ""))
+            .filter(Boolean)
+            .map((color) => colorLookup.get(color))
+            .filter((color): color is string => Boolean(color))
+        : [];
+      const sizeLookup = new Map(sizeOptions.map((option) => [option.toLowerCase(), option]));
+      const normalizedSizes = Array.isArray(sizes)
+        ? sizes
+            .map((size) => (typeof size === "string" ? size.toLowerCase() : ""))
+            .filter(Boolean)
+            .map((size) => sizeLookup.get(size))
+            .filter((size): size is string => Boolean(size))
+        : [];
       const isAllColors =
-        Array.isArray(colors) &&
-        colors.length === colorOptions.length &&
-        colorOptions.every((color) => colors.includes(color));
+        normalizedColors.length > 0 &&
+        normalizedColors.length === colorOptions.length &&
+        colorOptions.every((color) => normalizedColors.includes(color));
       const isAllSizes =
-        Array.isArray(sizes) &&
-        sizes.length === sizeOptions.length &&
-        sizeOptions.every((size) => sizes.includes(size));
+        normalizedSizes.length > 0 &&
+        normalizedSizes.length === sizeOptions.length &&
+        sizeOptions.every((size) => normalizedSizes.includes(size));
       const nextColors =
-        Array.isArray(colors) && colors.length > 0 && !isAllColors ? colors : filters.colors;
+        normalizedColors.length > 0 && !isAllColors ? normalizedColors : filters.colors;
       const nextSizes =
-        Array.isArray(sizes) && sizes.length > 0 && !isAllSizes ? sizes : filters.sizes;
+        normalizedSizes.length > 0 && !isAllSizes ? normalizedSizes : filters.sizes;
       applyFilters({
         category: nextCategory,
         colors: nextColors,
@@ -152,23 +319,71 @@ function ShoppingApp() {
   });
 
   useCopilotAction({
+    name: "get_active_filters",
+    description: "Return the current view and active filters.",
+    parameters: [],
+    handler: async () => ({ view, filters }),
+  });
+
+  useCopilotAction({
+    name: "get_filter_options",
+    description: "Return the available filter options for the current view.",
+    parameters: [],
+    handler: async () => ({
+      view,
+      categoryOptions,
+      colorOptions,
+      sizeOptions,
+      priceRange: { min: 0, max: maxPrice },
+    }),
+  });
+
+  useCopilotAction({
     name: "clear_filters",
     description: "Clear all catalog filters.",
     parameters: [],
     handler: async () => {
-      applyFilters(INITIAL_FILTERS);
+      applyFilters(createInitialFilters(maxPrice));
     },
   });
 
-  const filteredProducts = PRODUCTS.filter((product) => {
-    if (filters.category !== "all" && product.category !== filters.category) return false;
-    if (filters.colors.length > 0 && !filters.colors.some((color) => product.colors.includes(color)))
-      return false;
-    if (filters.sizes.length > 0 && !filters.sizes.some((size) => product.sizes.includes(size)))
-      return false;
-    if (product.priceUsd < filters.priceRange.min || product.priceUsd > filters.priceRange.max)
-      return false;
-    return true;
+  const filteredProducts = filterProducts(baseProducts, filters);
+
+  useCopilotAction({
+    name: "get_filtered_products",
+    description: "Return the currently visible products for this view.",
+    parameters: [],
+    handler: async () => ({
+      view,
+      total: filteredProducts.length,
+      products: filteredProducts,
+    }),
+  });
+
+  useCopilotAction({
+    name: "get_product_details",
+    description: "Return details for a visible product by id or name.",
+    parameters: [
+      {
+        name: "id",
+        type: "string",
+        description: "Product id (preferred if known).",
+      },
+      {
+        name: "name",
+        type: "string",
+        description: "Product name (case-insensitive).",
+      },
+    ],
+    handler: async ({ id, name }) => {
+      const normalizedName = typeof name === "string" ? name.toLowerCase() : "";
+      const match = filteredProducts.find((product) => {
+        if (id && product.id === id) return true;
+        if (normalizedName && product.name.toLowerCase() === normalizedName) return true;
+        return false;
+      });
+      return match ?? null;
+    },
   });
 
   const toggleColor = (color: string) => {
@@ -186,20 +401,19 @@ function ShoppingApp() {
   };
 
   return (
-    <div className="catalog">
-      <header className="catalog-header">
-        <div>
-          <h1>Slopyfy Shop</h1>
-          <p>Browse essentials and let the agent filter for you.</p>
-        </div>
+    <>
+      <div className="header-actions">
+        <button className="secondary-button" type="button" onClick={onGoHome}>
+          Home
+        </button>
         <button
           className="secondary-button clear-filters-button"
           type="button"
-          onClick={() => applyFilters(INITIAL_FILTERS)}
+          onClick={() => applyFilters(createInitialFilters(maxPrice))}
         >
           Clear filters
         </button>
-      </header>
+      </div>
 
       <section className="filters">
         <div className="filter-card">
@@ -296,7 +510,7 @@ function ShoppingApp() {
           <h2>
             Results <span>({filteredProducts.length})</span>
           </h2>
-          <span className="results-count">Showing {filteredProducts.length} of {PRODUCTS.length}</span>
+          <span className="results-count">Showing {filteredProducts.length} of {baseProducts.length}</span>
           <div className="active-filters">
             <span>{filters.category === "all" ? "All categories" : filters.category}</span>
             <span>{filters.colors.length ? filters.colors.join(", ") : "Any color"}</span>
@@ -313,7 +527,7 @@ function ShoppingApp() {
             <button
               className="secondary-button clear-filters-button"
               type="button"
-              onClick={() => applyFilters(INITIAL_FILTERS)}
+              onClick={() => applyFilters(createInitialFilters(maxPrice))}
             >
               Clear filters
             </button>
@@ -326,7 +540,7 @@ function ShoppingApp() {
           </div>
         )}
       </section>
-    </div>
+    </>
   );
 }
 
@@ -581,7 +795,7 @@ function ProductCard({ product }: { product: Product }) {
         <span className="price">${product.priceUsd}</span>
       </div>
       <h3>{product.name}</h3>
-      <p className="description">{product.description}</p>
+      <p className="description">{product.productDescription}</p>
       <div className="detail-row">
         <span>Colors:</span>
         <span>{product.colors.join(", ")}</span>
