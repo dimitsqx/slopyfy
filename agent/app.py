@@ -31,7 +31,14 @@ mcp_client = MCPClient(
 agent = Agent(
     model=model,
     # tools=[mcp_client],
-    system_prompt="You are a helpful AI assistant. Use the available MCP tools when relevant to the user's request.",
+    system_prompt=(
+        "You are a helpful AI assistant. Use the available MCP tools when relevant to the user's request. "
+        "For the shopping app filters (category, color, size, price): only apply filters the user "
+        "explicitly specifies, and leave all other filter groups unchanged. When calling apply_filters, "
+        "omit any fields you are not changing (do not send empty arrays unless the user asked to clear "
+        "that filter). Do not add extra filters unless asked. If a filter value is ambiguous, ask a brief "
+        "clarifying question."
+    ),
 )
 # Wrap with AG-UI integration
 agui_agent = StrandsAgent(

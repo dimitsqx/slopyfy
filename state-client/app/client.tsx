@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { CopilotKit, useCoAgent, useCopilotAction } from "@copilotkit/react-core";
-import { CopilotSidebar } from "@copilotkit/react-ui";
+import { useCoAgent, useCopilotAction } from "@copilotkit/react-core";
+import { CopilotChat } from "@copilotkit/react-ui";
 import "@copilotkit/react-ui/styles.css";
 import "./style.css";
 import { PRODUCTS, Product } from "./data";
@@ -67,19 +67,12 @@ const normalizeFilters = (next: Partial<FilterState>): FilterState => ({
 
 export default function ShoppingClient() {
   return (
-    <CopilotKit runtimeUrl="/api/copilotkit" showDevConsole={false} agent="strands_agent">
-      <div className="app-shell">
-        <ShoppingApp />
-        <CopilotSidebar
-          defaultOpen
-          labels={{
-            title: "Shop Assistant",
-            initial: "Tell me how to filter the catalog.",
-          }}
-          clickOutsideToClose={false}
-        />
+    <div className="app-shell">
+      <ShoppingApp />
+      <div className="chat-shell">
+        <ChatPanel />
       </div>
-    </CopilotKit>
+    </div>
   );
 }
 
@@ -115,7 +108,7 @@ function ShoppingApp() {
   useCopilotAction({
     name: "apply_filters",
     description:
-      "Apply catalog filters. Provide any subset of category, colors, sizes, minPrice, maxPrice.",
+      "Apply catalog filters. Provide only the fields you want to change. Omit others.",
     parameters: [
       {
         name: "category",
@@ -125,12 +118,12 @@ function ShoppingApp() {
       {
         name: "colors",
         type: "string[]",
-        description: `Colors to include (${colorOptions.join(", ")}).`,
+        description: `Colors to include (${colorOptions.join(", ")}). Omit to leave unchanged.`,
       },
       {
         name: "sizes",
         type: "string[]",
-        description: `Sizes to include (${sizeOptions.join(", ")}).`,
+        description: `Sizes to include (${sizeOptions.join(", ")}). Omit to leave unchanged.`,
       },
       { name: "minPrice", type: "number", description: "Minimum price in USD." },
       { name: "maxPrice", type: "number", description: "Maximum price in USD." },
@@ -140,10 +133,22 @@ function ShoppingApp() {
         category && categoryOptions.includes(category as FilterState["category"])
           ? (category as FilterState["category"])
           : filters.category;
+      const isAllColors =
+        Array.isArray(colors) &&
+        colors.length === colorOptions.length &&
+        colorOptions.every((color) => colors.includes(color));
+      const isAllSizes =
+        Array.isArray(sizes) &&
+        sizes.length === sizeOptions.length &&
+        sizeOptions.every((size) => sizes.includes(size));
+      const nextColors =
+        Array.isArray(colors) && colors.length > 0 && !isAllColors ? colors : filters.colors;
+      const nextSizes =
+        Array.isArray(sizes) && sizes.length > 0 && !isAllSizes ? sizes : filters.sizes;
       applyFilters({
         category: nextCategory,
-        colors: colors ?? filters.colors,
-        sizes: sizes ?? filters.sizes,
+        colors: nextColors,
+        sizes: nextSizes,
         priceRange: {
           min: minPrice ?? filters.priceRange.min,
           max: maxPrice ?? filters.priceRange.max,
@@ -196,7 +201,7 @@ function ShoppingApp() {
           <p>Browse essentials and let the agent filter for you.</p>
         </div>
         <button
-          className="secondary-button"
+          className="secondary-button clear-filters-button"
           type="button"
           onClick={() => applyFilters(INITIAL_FILTERS)}
         >
@@ -299,6 +304,7 @@ function ShoppingApp() {
           <h2>
             Results <span>({filteredProducts.length})</span>
           </h2>
+          <span className="results-count">Showing {filteredProducts.length} of {PRODUCTS.length}</span>
           <div className="active-filters">
             <span>{filters.category === "all" ? "All categories" : filters.category}</span>
             <span>{filters.colors.length ? filters.colors.join(", ") : "Any color"}</span>
@@ -309,31 +315,68 @@ function ShoppingApp() {
           </div>
         </div>
 
-        <div className="product-grid">
-          {filteredProducts.map((product) => (
-            <article key={product.id} className="product-card">
-              <div className="product-meta">
-                <span className="pill">{product.category}</span>
-                <span className="price">${product.priceUsd}</span>
-              </div>
-              <h3>{product.name}</h3>
-              <p className="description">{product.description}</p>
-              <div className="detail-row">
-                <span>Colors:</span>
-                <span>{product.colors.join(", ")}</span>
-              </div>
-              <div className="detail-row">
-                <span>Sizes:</span>
-                <span>{product.sizes.join(", ")}</span>
-              </div>
-              <div className="detail-row">
-                <span>Inventory:</span>
-                <span>{product.inventory}</span>
-              </div>
-            </article>
-          ))}
-        </div>
+        {filteredProducts.length === 0 ? (
+          <div className="empty-state">
+            <p>No products match these filters.</p>
+            <button
+              className="secondary-button clear-filters-button"
+              type="button"
+              onClick={() => applyFilters(INITIAL_FILTERS)}
+            >
+              Clear filters
+            </button>
+          </div>
+        ) : (
+          <div className="product-grid">
+            {filteredProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        )}
       </section>
     </div>
+  );
+}
+
+function ChatPanel() {
+  return (
+    <div className="chat-panel">
+      <div className="chat-panel-header">
+        <div>
+          <h2>Shop Assistant</h2>
+          <p>Ask me to filter the catalog.</p>
+        </div>
+      </div>
+      <CopilotChat
+        className="chat-panel-body"
+        labels={{ initial: "Tell me how to filter the catalog." }}
+      />
+    </div>
+  );
+}
+
+function ProductCard({ product }: { product: Product }) {
+  return (
+    <article className="product-card">
+      <div className="product-image-placeholder">Image</div>
+      <div className="product-meta">
+        <span className="pill">{product.category}</span>
+        <span className="price">${product.priceUsd}</span>
+      </div>
+      <h3>{product.name}</h3>
+      <p className="description">{product.description}</p>
+      <div className="detail-row">
+        <span>Colors:</span>
+        <span>{product.colors.join(", ")}</span>
+      </div>
+      <div className="detail-row">
+        <span>Sizes:</span>
+        <span>{product.sizes.join(", ")}</span>
+      </div>
+      <div className="detail-row">
+        <span>Inventory:</span>
+        <span>{product.inventory}</span>
+      </div>
+    </article>
   );
 }
