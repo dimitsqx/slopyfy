@@ -1,0 +1,152 @@
+[
+  {
+    "id": "tee-001",
+    "name": "Nimbus Cotton Tee",
+    "description": "Nimbus Cotton Tee is a tops staple for adults. Crafted for daily wear with a comfortable fit, it comes in white, midnight and sizes XS, S, M. Finished with durable details for long-lasting use.",
+    "image": "C:\\Users\\dimit\\Desktop\\tmp\\slopyfy\\state-client\\generated-assets\\images\\tee-001.png"
+  },
+  {
+    "id": "hood-002",
+    "name": "Atlas Fleece Hoodie",
+    "description": "Atlas Fleece Hoodie is a outerwear staple for adults. Crafted for daily wear with a comfortable fit, it comes in charcoal, sand and sizes S, M, L. Finished with durable details for long-lasting use.",
+    "image": "C:\\Users\\dimit\\Desktop\\tmp\\slopyfy\\state-client\\generated-assets\\images\\hood-002.png"
+  },
+  {
+    "id": "pants-003",
+    "name": "Tide Tapered Chino",
+    "description": "Tide Tapered Chino is a bottoms staple for adults. Crafted for daily wear with a comfortable fit, it comes in navy, khaki and sizes 28, 30, 32. Finished with durable details for long-lasting use.",
+    "image": "C:\\Users\\dimit\\Desktop\\tmp\\slopyfy\\state-client\\generated-assets\\images\\pants-003.png"
+  },
+  {
+    "id": "jkt-004",
+    "name": "Summit Shell Jacket",
+    "description": "Summit Shell Jacket is a outerwear staple for adults. Crafted for daily wear with a comfortable fit, it comes in black, slate and sizes S, M, L. Finished with durable details for long-lasting use.",
+    "image": "C:\\Users\\dimit\\Desktop\\tmp\\slopyfy\\state-client\\generated-assets\\images\\jkt-004.png"
+  },
+  {
+    "id": "cap-005",
+    "name": "Drift Canvas Cap",
+    "description": "Drift Canvas Cap is a accessories staple for kids. Crafted for daily wear with a comfortable fit, it comes in ecru, forest and sizes OS. Finished with durable details for long-lasting use.",
+    "image": "C:\\Users\\dimit\\Desktop\\tmp\\slopyfy\\state-client\\generated-assets\\images\\cap-005.png"
+  },
+  {
+    "id": "sneak-006",
+    "name": "Flux Knit Runner",
+    "description": "Flux Knit Runner is a footwear staple for kids. Crafted for daily wear with a comfortable fit, it comes in graphite, cloud and sizes 8, 9, 10. Finished with durable details for long-lasting use.",
+    "image": "C:\\Users\\dimit\\Desktop\\tmp\\slopyfy\\state-client\\generated-assets\\images\\sneak-006.png"
+  },
+  {
+    "id": "tee-007",
+    "name": "Coastline Pocket Tee",
+    "description": "Coastline Pocket Tee is a tops staple for kids. Crafted for daily wear with a comfortable fit, it comes in sky, cream and sizes XS, S, M. Finished with durable details for long-lasting use.",
+    "image": "C:\\Users\\dimit\\Desktop\\tmp\\slopyfy\\state-client\\generated-assets\\images\\tee-007.png"
+  },
+  {
+    "id": "short-008",
+    "name": "Harbor Pull-On Shorts",
+    "description": "Harbor Pull-On Shorts is a bottoms staple for kids. Crafted for daily wear with a comfortable fit, it comes in denim, stone and sizes XS, S, M. Finished with durable details for long-lasting use.",
+    "image": "C:\\Users\\dimit\\Desktop\\tmp\\slopyfy\\state-client\\generated-assets\\images\\short-008.png"
+  },
+  {
+    "id": "crew-009",
+    "name": "Ember Crew Sweatshirt",
+    "description": "Ember Crew Sweatshirt is a tops staple for adults. Crafted for daily wear with a comfortable fit, it comes in ash, copper and sizes S, M, L. Finished with durable details for long-lasting use.",
+    "image": "C:\\Users\\dimit\\Desktop\\tmp\\slopyfy\\state-client\\generated-assets\\images\\crew-009.png"
+  },
+  {
+    "id": "vest-010",
+    "name": "Northwind Quilted Vest",
+    "description": "Northwind Quilted Vest is a outerwear staple for adults. Crafted for daily wear with a comfortable fit, it comes in ink, moss and sizes S, M, L. Finished with durable details for long-lasting use.",
+    "image": "C:\\Users\\dimit\\Desktop\\tmp\\slopyfy\\state-client\\generated-assets\\images\\vest-010.png"
+  },
+  {
+    "id": "sock-011",
+    "name": "Field Rib Socks",
+    "description": "Field Rib Socks is a accessories staple for adults. Crafted for daily wear with a comfortable fit, it comes in heather, navy and sizes M, L. Finished with durable details for long-lasting use.",
+    "image": "C:\\Users\\dimit\\Desktop\\tmp\\slopyfy\\state-client\\generated-assets\\images\\sock-011.png"
+  },
+  {
+    "id": "belt-012",
+    "name": "Traverse Web Belt",
+    "description": "Traverse Web Belt is a accessories staple for adults. Crafted for daily wear with a comfortable fit, it comes in black, coyote and sizes OS. Finished with durable details for long-lasting use.",
+    "image": "C:\\Users\\dimit\\Desktop\\tmp\\slopyfy\\state-client\\generated-assets\\images\\belt-012.png"
+  },
+  {
+    "id": "boot-013",
+    "name": "Pioneer Trail Boot",
+    "description": "Pioneer Trail Boot is a footwear staple for adults. Crafted for daily wear with a comfortable fit, it comes in espresso, stone and sizes 8, 9, 10. Finished with durable details for long-lasting use.",
+    "image": "C:\\Users\\dimit\\Desktop\\tmp\\slopyfy\\state-client\\generated-assets\\images\\boot-013.png"
+  },
+  {
+    "id": "sneak-014",
+    "name": "Echo Low Sneaker",
+    "description": "Echo Low Sneaker is a footwear staple for adults. Crafted for daily wear with a comfortable fit, it comes in white, charcoal and sizes 7, 8, 9. Finished with durable details for long-lasting use.",
+    "image": "C:\\Users\\dimit\\Desktop\\tmp\\slopyfy\\state-client\\generated-assets\\images\\sneak-014.png"
+  },
+  {
+    "id": "beanie-015",
+    "name": "Fjord Knit Beanie",
+    "description": "Fjord Knit Beanie is a accessories staple for kids. Crafted for daily wear with a comfortable fit, it comes in berry, oat and sizes OS. Finished with durable details for long-lasting use.",
+    "image": "C:\\Users\\dimit\\Desktop\\tmp\\slopyfy\\state-client\\generated-assets\\images\\beanie-015.png"
+  },
+  {
+    "id": "jog-016",
+    "name": "Canyon Fleece Jogger",
+    "description": "Canyon Fleece Jogger is a bottoms staple for kids. Crafted for daily wear with a comfortable fit, it comes in charcoal, spruce and sizes XS, S, M. Finished with durable details for long-lasting use.",
+    "image": "C:\\Users\\dimit\\Desktop\\tmp\\slopyfy\\state-client\\generated-assets\\images\\jog-016.png"
+  },
+  {
+    "id": "polo-017",
+    "name": "Marina Pique Polo",
+    "description": "Marina Pique Polo is a tops staple for adults. Crafted for daily wear with a comfortable fit, it comes in white, ocean and sizes S, M, L. Finished with durable details for long-lasting use.",
+    "image": "C:\\Users\\dimit\\Desktop\\tmp\\slopyfy\\state-client\\generated-assets\\images\\polo-017.png"
+  },
+  {
+    "id": "card-018",
+    "name": "Aurora Knit Cardigan",
+    "description": "Aurora Knit Cardigan is a tops staple for adults. Crafted for daily wear with a comfortable fit, it comes in sand, slate and sizes S, M, L. Finished with durable details for long-lasting use.",
+    "image": "C:\\Users\\dimit\\Desktop\\tmp\\slopyfy\\state-client\\generated-assets\\images\\card-018.png"
+  },
+  {
+    "id": "coat-019",
+    "name": "Arbor Parka",
+    "description": "Arbor Parka is a outerwear staple for adults. Crafted for daily wear with a comfortable fit, it comes in forest, black and sizes S, M, L. Finished with durable details for long-lasting use.",
+    "image": "C:\\Users\\dimit\\Desktop\\tmp\\slopyfy\\state-client\\generated-assets\\images\\coat-019.png"
+  },
+  {
+    "id": "wind-020",
+    "name": "Seabreeze Windbreaker",
+    "description": "Seabreeze Windbreaker is a outerwear staple for kids. Crafted for daily wear with a comfortable fit, it comes in mist, navy and sizes XS, S, M. Finished with durable details for long-lasting use.",
+    "image": "C:\\Users\\dimit\\Desktop\\tmp\\slopyfy\\state-client\\generated-assets\\images\\wind-020.png"
+  },
+  {
+    "id": "denim-021",
+    "name": "Ridge Straight Denim",
+    "description": "Ridge Straight Denim is a bottoms staple for adults. Crafted for daily wear with a comfortable fit, it comes in indigo, coal and sizes 28, 30, 32. Finished with durable details for long-lasting use.",
+    "image": "C:\\Users\\dimit\\Desktop\\tmp\\slopyfy\\state-client\\generated-assets\\images\\denim-021.png"
+  },
+  {
+    "id": "skirt-022",
+    "name": "Lagoon Twill Skirt",
+    "description": "Lagoon Twill Skirt is a bottoms staple for kids. Crafted for daily wear with a comfortable fit, it comes in coral, sand and sizes XS, S, M. Finished with durable details for long-lasting use.",
+    "image": "C:\\Users\\dimit\\Desktop\\tmp\\slopyfy\\state-client\\generated-assets\\images\\skirt-022.png"
+  },
+  {
+    "id": "tank-023",
+    "name": "Breeze Linen Tank",
+    "description": "Breeze Linen Tank is a tops staple for adults. Crafted for daily wear with a comfortable fit, it comes in ivory, sage and sizes XS, S, M. Finished with durable details for long-lasting use.",
+    "image": "C:\\Users\\dimit\\Desktop\\tmp\\slopyfy\\state-client\\generated-assets\\images\\tank-023.png"
+  },
+  {
+    "id": "slide-024",
+    "name": "Harbor Slide",
+    "description": "Harbor Slide is a footwear staple for kids. Crafted for daily wear with a comfortable fit, it comes in sunset, navy and sizes 8, 9, 10. Finished with durable details for long-lasting use.",
+    "image": "C:\\Users\\dimit\\Desktop\\tmp\\slopyfy\\state-client\\generated-assets\\images\\slide-024.png"
+  },
+  {
+    "id": "lace-025",
+    "name": "Lumen Lace-Up Sneaker",
+    "description": "Lumen Lace-Up Sneaker is a footwear staple for adults. Crafted for daily wear with a comfortable fit, it comes in bone, graphite and sizes 7, 8, 9. Finished with durable details for long-lasting use.",
+    "image": "C:\\Users\\dimit\\Desktop\\tmp\\slopyfy\\state-client\\generated-assets\\images\\lace-025.png"
+  }
+]
