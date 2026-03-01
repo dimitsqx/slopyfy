@@ -186,7 +186,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--out",
-        default="../state-client/generated-assets",
+        default="../state-client/public/generated-assets",
         help="Output folder for descriptions and images",
     )
     parser.add_argument(

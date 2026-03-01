@@ -16,7 +16,7 @@ type PriceRange = {
 };
 
 type FilterState = {
-  category: Product["category"] | "all";
+  categories: Product["category"][];
   colors: string[];
   sizes: string[];
   priceRange: PriceRange;
@@ -50,28 +50,40 @@ const buildFilterOptions = (products: Product[]) => {
   const maxPrice = products.length
     ? Math.max(...products.map((product) => product.priceUsd))
     : 0;
-  const categoryOptions: FilterState["category"][] = [
-    "all",
-    ...uniqueValues(products.map((product) => product.category) as Product["category"][]),
-  ];
+  const categoryOptions = uniqueValues(
+    products.map((product) => product.category) as Product["category"][]
+  );
   const colorOptions = uniqueValues(products.flatMap((product) => product.colors));
   const sizeOptions = uniqueValues(products.flatMap((product) => product.sizes));
   return { maxPrice, categoryOptions, colorOptions, sizeOptions };
 };
 
 const createInitialFilters = (maxPrice: number): FilterState => ({
-  category: "all",
+  categories: [],
   colors: [],
   sizes: [],
   priceRange: { min: 0, max: maxPrice },
 });
 
-const normalizeFilters = (next: Partial<FilterState>, maxPrice: number): FilterState => ({
-  category: (next.category ?? "all") as FilterState["category"],
-  colors: Array.isArray(next.colors) ? next.colors : [],
-  sizes: Array.isArray(next.sizes) ? next.sizes : [],
-  priceRange: sanitizePriceRange(next.priceRange ?? { min: 0, max: maxPrice }, maxPrice),
-});
+const normalizeFilters = (
+  next: Partial<FilterState> & {
+    category?: Product["category"] | "all";
+    categories?: Product["category"][];
+  },
+  maxPrice: number
+): FilterState => {
+  const categories = Array.isArray(next.categories)
+    ? next.categories
+    : typeof next.category === "string" && next.category !== "all"
+      ? [next.category as Product["category"]]
+      : [];
+  return {
+    categories,
+    colors: Array.isArray(next.colors) ? next.colors : [],
+    sizes: Array.isArray(next.sizes) ? next.sizes : [],
+    priceRange: sanitizePriceRange(next.priceRange ?? { min: 0, max: maxPrice }, maxPrice),
+  };
+};
 
 const getProductsForView = (view: ViewState) => {
   if (view === "home") return PRODUCTS;
@@ -82,7 +94,9 @@ const getFilterOptionsForView = (view: ViewState) => buildFilterOptions(getProdu
 
 const filterProducts = (products: Product[], filters: FilterState) =>
   products.filter((product) => {
-    if (filters.category !== "all" && product.category !== filters.category) return false;
+    if (filters.categories.length > 0 && !filters.categories.includes(product.category)) {
+      return false;
+    }
     if (filters.colors.length > 0 && !filters.colors.some((color) => product.colors.includes(color)))
       return false;
     if (filters.sizes.length > 0 && !filters.sizes.some((size) => product.sizes.includes(size)))
@@ -252,7 +266,12 @@ function ProductView({
       {
         name: "category",
         type: "string",
-        description: `Category to filter (${categoryOptions.join(", ")}). Use "all" to clear.`,
+        description: `Single category (${categoryOptions.join(", ")}). Use "all" to clear.`,
+      },
+      {
+        name: "categories",
+        type: "string[]",
+        description: `Categories to include (${categoryOptions.join(", ")}). Use ["all"] to clear.`,
       },
       {
         name: "colors",
@@ -267,7 +286,7 @@ function ProductView({
       { name: "minPrice", type: "number", description: "Minimum price in USD." },
       { name: "maxPrice", type: "number", description: "Maximum price in USD." },
     ],
-    handler: async ({ category, colors, sizes, minPrice, maxPrice }) => {
+    handler: async ({ category, categories, colors, sizes, minPrice, maxPrice }) => {
       const categoryLookup = new Map(
         categoryOptions.map((option) => [option.toLowerCase(), option])
       );
@@ -277,7 +296,23 @@ function ProductView({
         normalizedCategory && categoryLookup.has(normalizedCategory)
           ? categoryLookup.get(normalizedCategory)
           : undefined;
-      const nextCategory = resolvedCategory ?? filters.category;
+      const normalizedCategories = Array.isArray(categories)
+        ? categories
+            .map((value) => (typeof value === "string" ? value.toLowerCase() : ""))
+            .filter(Boolean)
+        : [];
+      const hasClearAll = normalizedCategories.includes("all");
+      const resolvedCategories = hasClearAll
+        ? []
+        : normalizedCategories
+            .map((value) => categoryLookup.get(value))
+            .filter((value): value is Product["category"] => Boolean(value));
+      const nextCategories =
+        resolvedCategories.length > 0
+          ? resolvedCategories
+          : resolvedCategory
+            ? [resolvedCategory]
+            : filters.categories;
       const colorLookup = new Map(colorOptions.map((option) => [option.toLowerCase(), option]));
       const normalizedColors = Array.isArray(colors)
         ? colors
@@ -307,7 +342,7 @@ function ProductView({
       const nextSizes =
         normalizedSizes.length > 0 && !isAllSizes ? normalizedSizes : filters.sizes;
       applyFilters({
-        category: nextCategory,
+        categories: nextCategories,
         colors: nextColors,
         sizes: nextSizes,
         priceRange: {
@@ -386,17 +421,15 @@ function ProductView({
     },
   });
 
-  const toggleColor = (color: string) => {
-    const next = filters.colors.includes(color)
-      ? filters.colors.filter((item) => item !== color)
-      : [...filters.colors, color];
+  const setCategories = (next: Product["category"][]) => {
+    applyFilters({ categories: next });
+  };
+
+  const setColors = (next: string[]) => {
     applyFilters({ colors: next });
   };
 
-  const toggleSize = (size: string) => {
-    const next = filters.sizes.includes(size)
-      ? filters.sizes.filter((item) => item !== size)
-      : [...filters.sizes, size];
+  const setSizes = (next: string[]) => {
     applyFilters({ sizes: next });
   };
 
@@ -416,53 +449,29 @@ function ProductView({
       </div>
 
       <section className="filters">
-        <div className="filter-card">
-          <h2>Category</h2>
-          <div className="chip-group">
-            {categoryOptions.map((category) => (
-              <button
-                key={category}
-                type="button"
-                className={category === filters.category ? "chip chip-active" : "chip"}
-                onClick={() => applyFilters({ category })}
-              >
-                {category}
-              </button>
-            ))}
-          </div>
-        </div>
+        <MultiSelectDropdown
+          label="Category"
+          options={categoryOptions}
+          selected={filters.categories}
+          placeholder="All categories"
+          onChange={setCategories}
+        />
 
-        <div className="filter-card">
-          <h2>Colors</h2>
-          <div className="checkbox-group">
-            {colorOptions.map((color) => (
-              <label key={color} className="checkbox-item">
-                <input
-                  type="checkbox"
-                  checked={filters.colors.includes(color)}
-                  onChange={() => toggleColor(color)}
-                />
-                <span>{color}</span>
-              </label>
-            ))}
-          </div>
-        </div>
+        <MultiSelectDropdown
+          label="Colors"
+          options={colorOptions}
+          selected={filters.colors}
+          placeholder="Any color"
+          onChange={setColors}
+        />
 
-        <div className="filter-card">
-          <h2>Sizes</h2>
-          <div className="checkbox-group">
-            {sizeOptions.map((size) => (
-              <label key={size} className="checkbox-item">
-                <input
-                  type="checkbox"
-                  checked={filters.sizes.includes(size)}
-                  onChange={() => toggleSize(size)}
-                />
-                <span>{size}</span>
-              </label>
-            ))}
-          </div>
-        </div>
+        <MultiSelectDropdown
+          label="Sizes"
+          options={sizeOptions}
+          selected={filters.sizes}
+          placeholder="Any size"
+          onChange={setSizes}
+        />
 
         <div className="filter-card">
           <h2>Price (USD)</h2>
@@ -512,7 +521,11 @@ function ProductView({
           </h2>
           <span className="results-count">Showing {filteredProducts.length} of {baseProducts.length}</span>
           <div className="active-filters">
-            <span>{filters.category === "all" ? "All categories" : filters.category}</span>
+            <span>
+              {filters.categories.length > 0
+                ? filters.categories.join(", ")
+                : "All categories"}
+            </span>
             <span>{filters.colors.length ? filters.colors.join(", ") : "Any color"}</span>
             <span>{filters.sizes.length ? filters.sizes.join(", ") : "Any size"}</span>
             <span>
@@ -541,6 +554,90 @@ function ProductView({
         )}
       </section>
     </>
+  );
+}
+
+function MultiSelectDropdown<T extends string>({
+  label,
+  options,
+  selected,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  options: T[];
+  selected: T[];
+  placeholder: string;
+  onChange: (next: T[]) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!containerRef.current) return;
+      if (!containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const toggleOption = (option: T) => {
+    const next = selected.includes(option)
+      ? selected.filter((item) => item !== option)
+      : [...selected, option];
+    onChange(next);
+  };
+
+  const clearAll = () => onChange([]);
+
+  return (
+    <div className="filter-card" ref={containerRef}>
+      <h2>{label}</h2>
+      <button
+        className={`dropdown-trigger ${isOpen ? "dropdown-trigger-open" : ""}`}
+        type="button"
+        onClick={() => setIsOpen((open) => !open)}
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
+      >
+        <div className="dropdown-trigger-content">
+          {selected.length > 0 ? (
+            selected.map((item) => (
+              <span key={item} className="dropdown-chip">
+                {item}
+              </span>
+            ))
+          ) : (
+            <span className="dropdown-placeholder">{placeholder}</span>
+          )}
+        </div>
+        <span className="dropdown-caret" aria-hidden="true">
+          {isOpen ? "▲" : "▼"}
+        </span>
+      </button>
+      {isOpen ? (
+        <div className="dropdown-menu" role="listbox">
+          <button type="button" className="dropdown-clear" onClick={clearAll}>
+            Clear
+          </button>
+          <div className="dropdown-options">
+            {options.map((option) => (
+              <label key={option} className="dropdown-option">
+                <input
+                  type="checkbox"
+                  checked={selected.includes(option)}
+                  onChange={() => toggleOption(option)}
+                />
+                <span>{option}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -791,7 +888,11 @@ async function transcribeAndSend(
 function ProductCard({ product }: { product: Product }) {
   return (
     <article className="product-card">
-      <div className="product-image-placeholder">Image</div>
+      {product.imageUrl ? (
+        <img className="product-image" src={product.imageUrl} alt={product.name} />
+      ) : (
+        <div className="product-image-placeholder">Image</div>
+      )}
       <div className="product-meta">
         <span className="pill">{product.category}</span>
         <span className="price">${product.priceUsd}</span>

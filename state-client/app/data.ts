@@ -7,6 +7,7 @@ export type Product = {
   sizes: string[];
   colors: string[];
   productDescription: string;
+  imageUrl: string;
   inventory: number;
 };
 
@@ -20,6 +21,7 @@ export const PRODUCTS: Product[] = [
     sizes: ["XS", "S", "M", "L", "XL"],
     colors: ["white", "midnight", "sage"],
     productDescription: "Soft combed cotton tee with a relaxed fit and reinforced neck.",
+    imageUrl: "/generated-assets/images/tee-001.png",
     inventory: 42,
   },
   {
@@ -31,6 +33,7 @@ export const PRODUCTS: Product[] = [
     sizes: ["S", "M", "L", "XL"],
     colors: ["charcoal", "sand"],
     productDescription: "Heavyweight fleece hoodie with double-layer hood and hidden pocket.",
+    imageUrl: "/generated-assets/images/hood-002.png",
     inventory: 18,
   },
   {
@@ -42,6 +45,7 @@ export const PRODUCTS: Product[] = [
     sizes: ["28", "30", "32", "34", "36"],
     colors: ["navy", "khaki", "olive"],
     productDescription: "Tapered chino with stretch cotton and a clean, minimal finish.",
+    imageUrl: "/generated-assets/images/pants-003.png",
     inventory: 30,
   },
   {
@@ -53,6 +57,7 @@ export const PRODUCTS: Product[] = [
     sizes: ["S", "M", "L"],
     colors: ["black", "slate"],
     productDescription: "Lightweight shell with water resistance and breathable lining.",
+    imageUrl: "/generated-assets/images/jkt-004.png",
     inventory: 12,
   },
   {
@@ -64,6 +69,7 @@ export const PRODUCTS: Product[] = [
     sizes: ["OS"],
     colors: ["ecru", "forest"],
     productDescription: "Structured canvas cap with an adjustable brass buckle.",
+    imageUrl: "/generated-assets/images/cap-005.png",
     inventory: 55,
   },
   {
@@ -75,6 +81,7 @@ export const PRODUCTS: Product[] = [
     sizes: ["8", "9", "10", "11", "12"],
     colors: ["graphite", "cloud"],
     productDescription: "Knit runner with cushioned midsole and grippy outsole.",
+    imageUrl: "/generated-assets/images/sneak-006.png",
     inventory: 20,
   },
   {
@@ -86,6 +93,7 @@ export const PRODUCTS: Product[] = [
     sizes: ["XS", "S", "M", "L"],
     colors: ["sky", "cream"],
     productDescription: "Lightweight pocket tee with breathable jersey knit fabric.",
+    imageUrl: "/generated-assets/images/tee-007.png",
     inventory: 48,
   },
   {
@@ -97,6 +105,7 @@ export const PRODUCTS: Product[] = [
     sizes: ["XS", "S", "M", "L"],
     colors: ["denim", "stone"],
     productDescription: "Easy pull-on shorts with elastic waistband and soft twill.",
+    imageUrl: "/generated-assets/images/short-008.png",
     inventory: 36,
   },
   {
@@ -108,6 +117,7 @@ export const PRODUCTS: Product[] = [
     sizes: ["S", "M", "L", "XL"],
     colors: ["ash", "copper"],
     productDescription: "Brushed fleece crew with ribbed cuffs and hem.",
+    imageUrl: "/generated-assets/images/crew-009.png",
     inventory: 24,
   },
   {
@@ -119,6 +129,7 @@ export const PRODUCTS: Product[] = [
     sizes: ["S", "M", "L", "XL"],
     colors: ["ink", "moss"],
     productDescription: "Quilted vest with lightweight insulation and snap front.",
+    imageUrl: "/generated-assets/images/vest-010.png",
     inventory: 16,
   },
   {
@@ -130,6 +141,7 @@ export const PRODUCTS: Product[] = [
     sizes: ["M", "L"],
     colors: ["heather", "navy", "russet"],
     productDescription: "Ribbed cotton socks with reinforced heel and toe.",
+    imageUrl: "/generated-assets/images/sock-011.png",
     inventory: 80,
   },
   {
@@ -141,6 +153,7 @@ export const PRODUCTS: Product[] = [
     sizes: ["OS"],
     colors: ["black", "coyote"],
     productDescription: "Durable web belt with matte metal buckle.",
+    imageUrl: "/generated-assets/images/belt-012.png",
     inventory: 40,
   },
   {
@@ -152,6 +165,7 @@ export const PRODUCTS: Product[] = [
     sizes: ["8", "9", "10", "11", "12"],
     colors: ["espresso", "stone"],
     productDescription: "Water-resistant leather boot with rugged lug outsole.",
+    imageUrl: "/generated-assets/images/boot-013.png",
     inventory: 14,
   },
   {
@@ -163,6 +177,7 @@ export const PRODUCTS: Product[] = [
     sizes: ["7", "8", "9", "10", "11"],
     colors: ["white", "charcoal"],
     productDescription: "Low-profile sneaker with cushioned footbed and gum sole.",
+    imageUrl: "/generated-assets/images/sneak-014.png",
     inventory: 22,
   },
   {
@@ -174,6 +189,7 @@ export const PRODUCTS: Product[] = [
     sizes: ["OS"],
     colors: ["berry", "oat"],
     productDescription: "Soft knit beanie with a fold-over cuff for warmth.",
+    imageUrl: "/generated-assets/images/beanie-015.png",
     inventory: 60,
   },
   {
@@ -185,6 +201,7 @@ export const PRODUCTS: Product[] = [
     sizes: ["XS", "S", "M", "L"],
     colors: ["charcoal", "spruce"],
     productDescription: "Cozy fleece jogger with tapered leg and ankle cuff.",
+    imageUrl: "/generated-assets/images/jog-016.png",
     inventory: 28,
   },
   {
@@ -196,6 +213,7 @@ export const PRODUCTS: Product[] = [
     sizes: ["S", "M", "L", "XL"],
     colors: ["white", "ocean", "ember"],
     productDescription: "Breathable pique polo with a clean two-button placket.",
+    imageUrl: "/generated-assets/images/polo-017.png",
     inventory: 26,
   },
   {
@@ -207,6 +225,7 @@ export const PRODUCTS: Product[] = [
     sizes: ["S", "M", "L"],
     colors: ["sand", "slate"],
     productDescription: "Midweight knit cardigan with patch pockets and shawl collar.",
+    imageUrl: "/generated-assets/images/card-018.png",
     inventory: 10,
   },
   {
@@ -218,6 +237,7 @@ export const PRODUCTS: Product[] = [
     sizes: ["S", "M", "L", "XL"],
     colors: ["forest", "black"],
     productDescription: "Insulated parka with storm flap and removable hood.",
+    imageUrl: "/generated-assets/images/coat-019.png",
     inventory: 8,
   },
   {
@@ -229,6 +249,7 @@ export const PRODUCTS: Product[] = [
     sizes: ["XS", "S", "M", "L"],
     colors: ["mist", "navy"],
     productDescription: "Packable windbreaker with mesh lining and zip pockets.",
+    imageUrl: "/generated-assets/images/wind-020.png",
     inventory: 18,
   },
   {
@@ -240,6 +261,7 @@ export const PRODUCTS: Product[] = [
     sizes: ["28", "30", "32", "34", "36"],
     colors: ["indigo", "coal"],
     productDescription: "Straight-leg denim with stretch and a clean finish.",
+    imageUrl: "/generated-assets/images/denim-021.png",
     inventory: 21,
   },
   {
@@ -251,6 +273,7 @@ export const PRODUCTS: Product[] = [
     sizes: ["XS", "S", "M", "L"],
     colors: ["coral", "sand"],
     productDescription: "A-line twill skirt with adjustable waist tabs.",
+    imageUrl: "/generated-assets/images/skirt-022.png",
     inventory: 32,
   },
   {
@@ -262,6 +285,7 @@ export const PRODUCTS: Product[] = [
     sizes: ["XS", "S", "M", "L"],
     colors: ["ivory", "sage"],
     productDescription: "Linen blend tank with airy drape and clean seams.",
+    imageUrl: "/generated-assets/images/tank-023.png",
     inventory: 34,
   },
   {
@@ -273,6 +297,7 @@ export const PRODUCTS: Product[] = [
     sizes: ["8", "9", "10", "11", "12"],
     colors: ["sunset", "navy"],
     productDescription: "Water-friendly slide with cushioned footbed.",
+    imageUrl: "/generated-assets/images/slide-024.png",
     inventory: 27,
   },
   {
@@ -284,6 +309,7 @@ export const PRODUCTS: Product[] = [
     sizes: ["7", "8", "9", "10", "11", "12"],
     colors: ["bone", "graphite"],
     productDescription: "Minimal lace-up sneaker with padded collar and rubber sole.",
+    imageUrl: "/generated-assets/images/lace-025.png",
     inventory: 19,
   },
 ];
