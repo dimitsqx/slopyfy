@@ -1,0 +1,18 @@
+cpk-web-inspector {
+  display: none !important;
+}
+
+/* Force CopilotKit sidebar into layout flow */
+.copilotKitSidebar {
+  position: static !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  width: 100% !important;
+  margin: 0 !important;
+}
+
+.copilotKitSidebarContentWrapper {
+  margin-right: 0 !important;
+}
