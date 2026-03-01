@@ -8,6 +8,16 @@ import type { LiveFiltersResult } from "../../lib/live-filtering/types";
 
 const INPUT_DEBOUNCE_MS = 140;
 const FALLBACK_DEBOUNCE_MS = 180;
+const SILENCE_THRESHOLD = 0.018;
+const SILENCE_HOLD_MS = 700;
+const MAX_SEGMENT_MS = 8000;
+const MIN_BLOB_BYTES = 2048;
+
+type TranscriptionResponse = {
+  text: string;
+  rawResponse?: unknown;
+  model?: string;
+};
 
 export function LiveFilteringDemo() {
   const [transcript, setTranscript] = useState("");
@@ -15,8 +25,28 @@ export function LiveFilteringDemo() {
   const [useCerebrasFallback, setUseCerebrasFallback] = useState(false);
   const [isFallbackLoading, setIsFallbackLoading] = useState(false);
   const [fallbackError, setFallbackError] = useState<string | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribingVoice, setIsTranscribingVoice] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [rawGroqResponse, setRawGroqResponse] = useState<string>("");
   const activeRequest = useRef<AbortController | null>(null);
   const fallbackTimerRef = useRef<number | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const lastTranscriptRef = useRef("");
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const segmentTimerRef = useRef<number | null>(null);
+  const silenceSinceRef = useRef<number | null>(null);
+  const heardSpeechRef = useRef(false);
+  const keepVoiceSessionRef = useRef(false);
+  const recorderChunksRef = useRef<Blob[]>([]);
+
+  useEffect(() => {
+    lastTranscriptRef.current = transcript;
+  }, [transcript]);
 
   useEffect(() => {
     const parseTimer = window.setTimeout(() => {
@@ -95,6 +125,308 @@ export function LiveFilteringDemo() {
     };
   }, [transcript, useCerebrasFallback]);
 
+  useEffect(() => {
+    return () => {
+      keepVoiceSessionRef.current = false;
+      cleanupVoiceAnalysis();
+
+      if (mediaRecorderRef.current) {
+        if (mediaRecorderRef.current.state !== "inactive") {
+          mediaRecorderRef.current.stop();
+        } else {
+          mediaRecorderRef.current = null;
+
+          if (sourceNodeRef.current) {
+            sourceNodeRef.current.disconnect();
+            sourceNodeRef.current = null;
+          }
+
+          if (audioContextRef.current) {
+            void audioContextRef.current.close();
+            audioContextRef.current = null;
+          }
+
+          analyserRef.current = null;
+
+          if (mediaStreamRef.current) {
+            mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+            mediaStreamRef.current = null;
+          }
+        }
+      } else {
+        if (sourceNodeRef.current) {
+          sourceNodeRef.current.disconnect();
+          sourceNodeRef.current = null;
+        }
+
+        if (audioContextRef.current) {
+          void audioContextRef.current.close();
+          audioContextRef.current = null;
+        }
+
+        analyserRef.current = null;
+
+        if (mediaStreamRef.current) {
+          mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+          mediaStreamRef.current = null;
+        }
+      }
+    };
+  }, []);
+
+  function cleanupVoiceAnalysis() {
+    if (animationFrameRef.current) {
+      window.cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+
+    if (segmentTimerRef.current) {
+      window.clearTimeout(segmentTimerRef.current);
+      segmentTimerRef.current = null;
+    }
+
+    silenceSinceRef.current = null;
+    heardSpeechRef.current = false;
+  }
+
+  async function releaseVoiceResources() {
+    cleanupVoiceAnalysis();
+
+    if (sourceNodeRef.current) {
+      sourceNodeRef.current.disconnect();
+      sourceNodeRef.current = null;
+    }
+
+    if (audioContextRef.current) {
+      await audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+
+    analyserRef.current = null;
+
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+    }
+  }
+
+  function stopVoiceSession() {
+    keepVoiceSessionRef.current = false;
+    cleanupVoiceAnalysis();
+
+    if (mediaRecorderRef.current) {
+      if (mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      } else {
+        mediaRecorderRef.current = null;
+        void releaseVoiceResources();
+      }
+    } else {
+      void releaseVoiceResources();
+    }
+
+    setIsRecording(false);
+  }
+
+  function getSupportedMimeType() {
+    if (typeof MediaRecorder === "undefined") {
+      return "";
+    }
+
+    if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
+      return "audio/webm;codecs=opus";
+    }
+
+    if (MediaRecorder.isTypeSupported("audio/webm")) {
+      return "audio/webm";
+    }
+
+    return "";
+  }
+
+  function startVoiceAnalysis() {
+    const analyser = analyserRef.current;
+    if (!analyser) {
+      return;
+    }
+
+    const sampleBuffer = new Uint8Array(analyser.fftSize);
+
+    const tick = () => {
+      analyser.getByteTimeDomainData(sampleBuffer);
+
+      let sumSquares = 0;
+      for (let index = 0; index < sampleBuffer.length; index += 1) {
+        const normalized = (sampleBuffer[index] - 128) / 128;
+        sumSquares += normalized * normalized;
+      }
+
+      const rms = Math.sqrt(sumSquares / sampleBuffer.length);
+      const now = Date.now();
+
+      if (rms >= SILENCE_THRESHOLD) {
+        heardSpeechRef.current = true;
+        silenceSinceRef.current = null;
+      } else if (heardSpeechRef.current) {
+        if (!silenceSinceRef.current) {
+          silenceSinceRef.current = now;
+        } else if (now - silenceSinceRef.current >= SILENCE_HOLD_MS) {
+          silenceSinceRef.current = null;
+          if (mediaRecorderRef.current?.state === "recording") {
+            mediaRecorderRef.current.stop();
+            return;
+          }
+        }
+      }
+
+      animationFrameRef.current = window.requestAnimationFrame(tick);
+    };
+
+    animationFrameRef.current = window.requestAnimationFrame(tick);
+  }
+
+  function startRecordingSegment() {
+    const stream = mediaStreamRef.current;
+    if (!stream || !keepVoiceSessionRef.current) {
+      return;
+    }
+
+    cleanupVoiceAnalysis();
+    recorderChunksRef.current = [];
+
+    const mimeType = getSupportedMimeType();
+    const recorder = mimeType
+      ? new MediaRecorder(stream, { mimeType })
+      : new MediaRecorder(stream);
+
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        recorderChunksRef.current.push(event.data);
+      }
+    };
+
+    recorder.onerror = () => {
+      setVoiceError("Voice recording failed.");
+      stopVoiceSession();
+    };
+
+    recorder.onstop = () => {
+      const hadSpeech = heardSpeechRef.current;
+      const blobType = recorder.mimeType || mimeType || "audio/webm";
+      const blob = new Blob(recorderChunksRef.current, { type: blobType });
+      recorderChunksRef.current = [];
+      mediaRecorderRef.current = null;
+
+      void (async () => {
+        if (hadSpeech && blob.size >= MIN_BLOB_BYTES) {
+          await transcribeVoiceChunk(blob);
+        }
+
+        if (keepVoiceSessionRef.current) {
+          startRecordingSegment();
+          return;
+        }
+
+        await releaseVoiceResources();
+      })();
+    };
+
+    mediaRecorderRef.current = recorder;
+    recorder.start();
+    startVoiceAnalysis();
+    segmentTimerRef.current = window.setTimeout(() => {
+      if (mediaRecorderRef.current?.state === "recording") {
+        mediaRecorderRef.current.stop();
+      }
+    }, MAX_SEGMENT_MS);
+  }
+
+  async function transcribeVoiceChunk(blob: Blob) {
+    if (blob.size < MIN_BLOB_BYTES) {
+      return;
+    }
+
+    const form = new FormData();
+    form.append("file", new File([blob], "live-filtering.webm", { type: blob.type || "audio/webm" }));
+
+    const prompt = lastTranscriptRef.current.trim();
+    if (prompt) {
+      form.append("prompt", prompt.slice(-200));
+    }
+
+    setIsTranscribingVoice(true);
+    setVoiceError(null);
+
+    try {
+      const response = await fetch("/api/live-filtering/transcribe", {
+        method: "POST",
+        body: form,
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        throw new Error(payload?.error ?? `Request failed with ${response.status}`);
+      }
+
+      const payload = (await response.json()) as TranscriptionResponse;
+      setRawGroqResponse(JSON.stringify(payload.rawResponse ?? payload, null, 2));
+
+      const nextText = payload.text.trim();
+      if (!nextText) {
+        return;
+      }
+
+      setTranscript((current) => {
+        const prefix = current.trim();
+        return prefix ? `${prefix} ${nextText}` : nextText;
+      });
+    } catch (error) {
+      setVoiceError((error as Error).message);
+    } finally {
+      setIsTranscribingVoice(false);
+    }
+  }
+
+  async function toggleRecording() {
+    if (isRecording) {
+      stopVoiceSession();
+      return;
+    }
+
+    if (typeof window === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      setVoiceError("Microphone capture is not supported in this browser.");
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const audioContext = new AudioContext();
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 2048;
+      analyser.smoothingTimeConstant = 0.85;
+
+      const sourceNode = audioContext.createMediaStreamSource(stream);
+      sourceNode.connect(analyser);
+
+      mediaStreamRef.current = stream;
+      audioContextRef.current = audioContext;
+      analyserRef.current = analyser;
+      sourceNodeRef.current = sourceNode;
+      keepVoiceSessionRef.current = true;
+      setVoiceError(null);
+      setRawGroqResponse("");
+      setIsRecording(true);
+      startRecordingSegment();
+    } catch (error) {
+      setVoiceError((error as Error).message);
+      setIsRecording(false);
+      keepVoiceSessionRef.current = false;
+      await releaseVoiceResources();
+    }
+  }
+
   const filteredProducts = filterProducts(catalogProducts, resolved.filters);
 
   return (
@@ -123,6 +455,27 @@ export function LiveFilteringDemo() {
             placeholder="Type a shopping request..."
             className="mt-2 min-h-32 w-full resize-y rounded-2xl border border-stone-300 bg-stone-50 px-4 py-3 text-base text-stone-900 outline-none transition focus:border-stone-500 focus:bg-white"
           />
+
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => void toggleRecording()}
+              className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                isRecording
+                  ? "bg-red-600 text-white hover:bg-red-500"
+                  : "bg-stone-900 text-white hover:bg-stone-700"
+              }`}
+            >
+              {isRecording ? "Stop voice input" : "Start voice input"}
+            </button>
+            <p className="text-xs text-stone-500">
+              {isRecording
+                ? "Listening continuously and sending audio when you pause"
+                : isTranscribingVoice
+                  ? "Transcribing latest voice chunk..."
+                  : "Voice input is idle"}
+            </p>
+          </div>
 
           <label className="mt-4 flex items-center gap-3 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-700">
             <input
@@ -181,9 +534,24 @@ export function LiveFilteringDemo() {
             </pre>
           </div>
 
+          <div className="mt-5 rounded-2xl border border-stone-200 bg-stone-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
+              Raw Groq Transcription Response
+            </p>
+            <pre className="mt-2 overflow-x-auto text-xs leading-5 text-stone-700">
+              {rawGroqResponse || "No Groq transcription response yet"}
+            </pre>
+          </div>
+
           {fallbackError ? (
             <div className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
               {fallbackError}
+            </div>
+          ) : null}
+
+          {voiceError ? (
+            <div className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              {voiceError}
             </div>
           ) : null}
         </section>
