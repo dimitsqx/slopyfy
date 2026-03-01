@@ -550,13 +550,15 @@ function ChatPanel() {
       <div className="chat-panel-header">
         <div>
           <h2>Shop Assistant</h2>
-          <p>Ask me to filter the catalog.</p>
+          <p>Pick kids or adults, then tell me how to refine the catalog.</p>
         </div>
       </div>
       <CopilotChat
         className="chat-panel-body"
         Input={ChatVoiceInput}
-        labels={{ initial: "Tell me how to filter the catalog." }}
+        labels={{
+          initial: "Hi, how can I help you today?",
+        }}
       />
     </div>
   );
